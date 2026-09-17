@@ -9,8 +9,8 @@ import streamlit as st
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-from src.fetch_nvda import fetch_nvda  # noqa: E402
-from src.analyze import build_features  # noqa: E402
+from analytics.fetch_nvda import fetch_market_data  # noqa: E402
+from analytics.features import add_features  # noqa: E402
 
 st.set_page_config(page_title="NVDA Data Analytics", page_icon="◈", layout="wide")
 
@@ -35,7 +35,7 @@ with st.sidebar:
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_data(selected_period: str) -> pd.DataFrame:
-    return build_features(fetch_nvda(selected_period, "1d"))
+    return add_features(fetch_market_data(selected_period, "1d"))
 
 try:
     if refresh:
@@ -77,10 +77,5 @@ with right:
     st.plotly_chart(volume, use_container_width=True)
 
 st.subheader("Latest observations")
-st.dataframe(
-    df.tail(15).sort_values("datetime", ascending=False),
-    use_container_width=True,
-    hide_index=True,
-)
-
+st.dataframe(df.tail(15).sort_values("datetime", ascending=False), use_container_width=True, hide_index=True)
 st.caption(f"Latest observation: {latest['datetime']} • Rows analyzed: {len(df):,}")
