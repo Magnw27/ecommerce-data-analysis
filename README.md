@@ -1,32 +1,26 @@
 # NVIDIA Market Lab
 
-A modular market-data engineering and analytics project for **NVIDIA Corporation (NASDAQ: NVDA)**, built as a portfolio-grade data pipeline with a Vite + React dashboard and a Python analysis layer.
-
-The project is intentionally split into two surfaces:
-
-- **Python analytics** — ingestion, validation, feature engineering, statistics and scheduled validation.
-- **Web dashboard** — a fast React/Vite interface that reads fresh public NVDA market data through a Vercel serverless API proxy.
+A modular market-data engineering and analytics project for **NVIDIA Corporation (NASDAQ: NVDA)**. The repository combines a Python analytics pipeline with a production-ready Vite + React dashboard served through Vercel.
 
 > **Data note:** this project uses publicly available market data. It is not NVIDIA internal/private data. Quote freshness depends on the upstream provider and may be delayed or unavailable. Nothing here is financial advice.
 
 ## Architecture
 
 ```text
-                 PUBLIC NVDA MARKET DATA
-                           │
-             ┌─────────────┴─────────────┐
-             │                           │
-        Python pipeline              Vercel API
-             │                           │
-      fetch → validate              /api/nvda
-             │                           │
-        feature layer                    │
-             │                           │
-       CSV / statistics          React dashboard
-             │                           │
-             └─────────────┬─────────────┘
-                           │
-                     Market Lab UI
+PUBLIC NVDA MARKET DATA
+          │
+     ┌────┴─────┐
+     │          │
+ Python       Vercel
+ pipeline       API
+     │          │
+     │       /api/nvda
+     │          │
+     └────┬─────┘
+          │
+   React / Vite UI
+          │
+     Market Lab
 ```
 
 ## Repository structure
@@ -34,113 +28,101 @@ The project is intentionally split into two surfaces:
 ```text
 ecommerce-data-analysis/
 ├── api/
-│   └── nvda.js                 # Vercel serverless market-data proxy
-│
-├── src/
+│   └── nvda.js                 # Vercel serverless proxy
+├── analytics/
 │   ├── __init__.py
-│   ├── config.py               # shared paths, ticker and API configuration
-│   ├── data_loader.py          # schema validation, typing and de-duplication
-│   ├── fetch_nvda.py           # public OHLCV ingestion
-│   ├── features.py             # returns, SMA, EMA, volatility, drawdown
-│   ├── metrics.py              # reusable summary metrics
-│   └── analyze.py              # Python CLI entry point
-│
+│   ├── config.py               # shared configuration
+│   ├── data_loader.py          # validation + normalization
+│   ├── fetch_nvda.py           # OHLCV ingestion
+│   ├── features.py             # feature engineering
+│   ├── metrics.py              # summary statistics
+│   └── analyze.py              # pipeline CLI
+├── src/
+│   ├── App.jsx                 # React application
+│   ├── main.jsx                # React entry point
+│   └── styles.css              # responsive design system
 ├── data/
 │   └── .gitkeep
-│
 ├── .github/workflows/
-│   └── validate.yml            # scheduled pipeline validation
-│
-├── src/
-│   ├── App.jsx                 # dashboard application
-│   ├── main.jsx                # React entry point
-│   └── styles.css              # responsive visual system
-│
-├── dashboard.py                # optional Streamlit analysis dashboard
-├── index.html
-├── package.json
-├── vite.config.js
-├── vercel.json
-├── requirements.txt
+│   └── validate.yml            # scheduled Python validation
+├── dashboard.py                # optional Streamlit dashboard
+├── index.html                  # Vite entry document
+├── package.json                # frontend dependencies/scripts
+├── vite.config.js              # Vite configuration
+├── vercel.json                 # Vercel SPA routing
+├── requirements.txt            # Python dependencies
 ├── .gitignore
 └── README.md
 ```
 
 ## Web dashboard
 
-The primary preview is the React/Vite application.
+The main preview is the React/Vite dashboard.
 
-### Features
+### Included
 
-- Fresh NVDA OHLCV requests through `/api/nvda`
-- 1mo / 3mo / 6mo / 1y / 2y / 5y history controls
-- Close price and SMA 20 visualization
-- Daily move, volatility and volume metrics
-- Session open/high/low/volume snapshot
-- Raw latest-observation table
-- CSV export directly from the browser
-- Explicit data-lineage panel
-- Responsive layout for mobile, tablet and desktop
-- No client-side API secret required
-- Vercel-compatible serverless API proxy
+- Public NVDA OHLCV data through a server-side Vercel proxy
+- 1mo / 3mo / 6mo / 1y / 2y / 5y history
+- Closing-price chart with SMA 20
+- Daily change, volatility, volume and period range metrics
+- Open / high / low / volume session snapshot
+- Raw OHLCV observation table
+- Browser CSV export
+- Explicit data-lineage view
+- Responsive mobile/tablet/desktop layout
+- No browser-side API secret
+- Minimal, information-first market-terminal visual language
 
-### Local web preview
+### Local preview
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open the Vite URL shown in the terminal, normally:
+Open the Vite URL, normally `http://localhost:5173`.
 
-```text
-http://localhost:5173
-```
-
-For a production build:
+Production build:
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## Python pipeline
+## Python analytics
 
-Install the analytics dependencies:
+Install dependencies:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-Fetch public NVDA candles:
+Fetch data:
 
 ```bash
-python -m src.fetch_nvda --period 1y --interval 1d
+python -m analytics.fetch_nvda --period 1y --interval 1d
 ```
 
-Build the processed dataset:
+Engineer features:
 
 ```bash
-python -m src.analyze
+python -m analytics.analyze
 ```
 
-The pipeline produces:
+Generated files:
 
 ```text
 data/nvda.csv
-
 data/nvda_processed.csv
 ```
 
-Generated CSV files are intentionally ignored by Git so the repository remains source-first.
+CSV output is ignored by Git to keep the repository source-first.
 
-## Analytics layer
+## Feature layer
 
-The feature module currently calculates:
-
-| Feature | Meaning |
+| Feature | Description |
 |---|---|
-| `return_pct` | percentage change between sessions |
+| `return_pct` | session-to-session percentage return |
 | `log_return` | logarithmic return |
 | `sma_20` | 20-session simple moving average |
 | `sma_50` | 50-session simple moving average |
@@ -148,38 +130,45 @@ The feature module currently calculates:
 | `volatility_20` | rolling standard deviation of daily returns |
 | `range_pct` | high-low range relative to close |
 | `volume_sma_20` | 20-session average volume |
-| `drawdown_pct` | decline from the running close high |
+| `drawdown_pct` | drawdown from running close high |
 
-The functions are deliberately reusable so notebooks, scripts and future APIs can share the same analytical logic.
+Each layer has a single responsibility so the same functions can be reused by scripts, notebooks, Streamlit and future APIs.
 
-## Vercel deployment
+## Vercel
 
-The repository is structured for a normal Vercel deployment:
+The project is structured for deployment from the repository root:
 
-1. Import `Magnw27/ecommerce-data-analysis` into Vercel.
-2. Use the repository root as the project root.
-3. Let Vercel detect the Vite application.
-4. Build command: `npm run build`.
-5. Output directory: `dist`.
-6. The `/api/nvda` function proxies public market-data requests server-side.
+```text
+Build command: npm run build
+Output: dist
+```
 
-No NVIDIA API key is required by the current public-data implementation.
+Vercel serves the Vite application and exposes `api/nvda.js` as a serverless function. The browser calls `/api/nvda`, while the serverless function calls the public upstream market-data endpoint. This avoids exposing provider-specific configuration in frontend code.
 
-## CI validation
+No NVIDIA API key is required by the current implementation.
 
-GitHub Actions validates the Python pipeline on pushes, pull requests, manual runs and a scheduled six-hour interval. The workflow fetches a fresh sample, builds features and checks that the expected analytical columns exist.
+## CI
+
+GitHub Actions runs on pushes, pull requests, manual dispatch and every six hours. It installs Python dependencies, downloads a fresh NVDA sample, runs feature engineering and verifies the resulting schema.
 
 ## Data source
 
-The market ingestion layer uses the public Yahoo Finance chart endpoint for ticker `NVDA`. NVIDIA's official investor-relations material should be used when authoritative company financial information is required.
+The ingestion layer uses the public Yahoo Finance chart endpoint for ticker `NVDA`. For authoritative NVIDIA corporate financial information, use NVIDIA's official investor-relations resources.
 
-## Design direction
+## Design principles
 
-The web interface avoids generic dashboard patterns such as excessive gradients, oversized cards and decorative animations. It uses a restrained dark market-terminal aesthetic, compact typography, visible data lineage and a strong information hierarchy so the data remains the visual focus.
+This is deliberately **not** a generic AI-generated dashboard. The interface favors:
+
+- restrained motion instead of decorative animation
+- compact information density
+- readable numerical hierarchy
+- clear provenance and data lineage
+- responsive behavior without a separate mobile UI
+- CSS/SVG visuals instead of a heavy charting/UI framework
 
 ## Disclaimer
 
-Educational and portfolio project only. Public market data may be delayed, incomplete, rate-limited or temporarily unavailable. This project does not provide investment advice or recommendations.
+Educational and portfolio project only. Public market data can be delayed, incomplete, rate-limited or temporarily unavailable. This project does not provide investment advice or recommendations.
 
 ## Author
 
