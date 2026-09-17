@@ -9,3 +9,7 @@ env/
 *.log
 data/*.csv
 !data/.gitkeep
+node_modules/
+dist/
+.vite/
+.vercel/
